@@ -1,0 +1,31 @@
+#include_directories(${PROJECT_SOURCE_DIR}/"include")
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(../private)
+
+add_library(umath.so
+            funcs.inc
+            funcs.inc.src
+            loops.c
+            loops.c.src
+            loops.h
+            loops.h.src
+            operand_flag_tests.c
+            operand_flag_tests.c.src
+            reduction.c
+            reduction.h
+            scalarmath.c
+            scalarmath.c.src
+            simd.inc
+            simd.inc.src
+            struct_ufunc_test.c
+            struct_ufunc_test.c.src
+            test_rational.c
+            test_rational.c.src
+            ufunc_object.c
+            ufunc_object.h
+            ufunc_type_resolution.c
+            ufunc_type_resolution.h
+            umathmodule.c
+            umath_tests.c
+            umath_tests.c.src)
