@@ -2,8 +2,9 @@ import numpy
 from numpy import int
 import pylab
 
+# x = numpy.linspace(0, 10, 21)
 x = numpy.linspace(0, 10, 100)
-y = numpy.sin(x)
+y = numpy.sin(x) + 0.1
 
 xi = numpy.linspace(0, 10, 10000)
 # xi = numpy.array([0.0, 0.33, 0.5, 0.73, 4.0])
@@ -13,31 +14,23 @@ pylab.plot(x, y, 'o')
 def nearest_left_neigbour_interpolate(xi, x, y):
     """
 
-    :param x:
-    :param xp:
-    :param yp:
-    :return:
+    :param xi: the values where the interpolation will be done
+    :param x: The x values of the data points (i think they must be in
+     increasing order [not sure though])
+    :param y: The y values of the data points corresponding to x
+    :return: The interpolated y values
     """
-    inds_matching_exactly = numpy.where(numpy.in1d(x, xi))
+
+    yi = numpy.zeros(xi.size, 'f8')
+
     inds_not_matching_exactly = numpy.where(~numpy.in1d(xi, x))
 
-    assert inds_matching_exactly[0].size + inds_not_matching_exactly[0].size == xi.size
+    # assert inds_matching_exactly[0].size + inds_not_matching_exactly[0].size == xi.size
 
-    x_matching = x[inds_matching_exactly]
-    y_matching = y[inds_matching_exactly]
+    yi[numpy.where(numpy.in1d(xi, x))] = y[numpy.where(numpy.in1d(x, xi))]
+    yi[inds_not_matching_exactly] = y[numpy.searchsorted(x, xi[inds_not_matching_exactly]) - 1]
 
-
-    x_not_matching = xi[inds_not_matching_exactly]
-    y_not_matching = y[numpy.searchsorted(x, xi[inds_not_matching_exactly]) - 1]
-
-    xi_new = numpy.hstack([x_matching, x_not_matching])
-    inds_sort = numpy.argsort(xi_new)
-    xi_new = xi_new[inds_sort]
-    yi_new = numpy.hstack([y_matching, y_not_matching])
-    yi_new = yi_new[inds_sort]
-
-    return yi_new
-
+    return yi
 
 pylab.plot(xi, nearest_left_neigbour_interpolate(xi, x, y), '-')
 
