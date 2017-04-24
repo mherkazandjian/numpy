@@ -4,10 +4,10 @@
 from __future__ import division, absolute_import, print_function
 
 from numpy.core.numeric import (
-    absolute, asanyarray, arange, zeros, greater_equal, multiply, ones,
+    asanyarray, arange, zeros, greater_equal, multiply, ones, moveaxis,
     asarray, where, int8, int16, int32, int64, empty, promote_types, diagonal,
     )
-from numpy.core import iinfo, transpose
+from numpy.core import iinfo
 
 
 __all__ = [
@@ -367,15 +367,18 @@ def tri(N, M=None, k=0, dtype=float):
     return m
 
 
-def tril(m, k=0):
+def tril(m, k=0, axes=(-2, -1)):
     """
     Lower triangle of an array.
 
     Return a copy of an array with elements above the `k`-th diagonal zeroed.
+    Typically this is desired for a matrix (2D array). But this function work
+    for an n-dimensional array as well. By default the last two axes are
+    treated as the "matrix" arrays.
 
     Parameters
     ----------
-    m : array_like, shape (M, N)
+    m : array_like of any shape, not just necessarily an (M, N) matrix
         Input array.
     k : int, optional
         Diagonal above which to zero elements.  `k = 0` (the default) is the
@@ -383,7 +386,7 @@ def tril(m, k=0):
 
     Returns
     -------
-    tril : ndarray, shape (M, N)
+    tril : ndarray, same shape as the input array
         Lower triangle of `m`, of same shape and data-type as `m`.
 
     See Also
@@ -400,12 +403,20 @@ def tril(m, k=0):
 
     """
     m = asanyarray(m)
+    if axes != (-2, -1):
+        m = moveaxis(m, axes[0], -2)
+        m = moveaxis(m, axes[1], -1)
+
     mask = tri(*m.shape[-2:], k=k, dtype=bool)
 
-    return where(mask, m, zeros(1, m.dtype))
+    retval = where(mask, m, zeros(1, m.dtype))
+    if axes != (-2, -1):
+        retval = moveaxis(retval, -2, axes[0])
+        retval = moveaxis(retval, -1, axes[1])
+    return retval
 
 
-def triu(m, k=0):
+def triu(m, k=0, axes=(-2, -1)):
     """
     Upper triangle of an array.
 
@@ -428,9 +439,18 @@ def triu(m, k=0):
 
     """
     m = asanyarray(m)
+    if axes != (-2, -1):
+        m = moveaxis(m, axes[0], -2)
+        m = moveaxis(m, axes[1], -1)
+
     mask = tri(*m.shape[-2:], k=k-1, dtype=bool)
 
-    return where(mask, zeros(1, m.dtype), m)
+    retval = where(mask, zeros(1, m.dtype), m)
+    if axes != (-2, -1):
+        retval = moveaxis(retval, -2, axes[0])
+        retval = moveaxis(retval, -1, axes[1])
+
+    return retval
 
 
 # Originally borrowed from John Hunter and matplotlib
