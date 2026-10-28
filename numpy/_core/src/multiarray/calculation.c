@@ -385,6 +385,7 @@ __New_PyArray_Std(PyArrayObject *self, int axis, int rtype, PyArrayObject *out,
         Py_INCREF(arr1);
     }
     if (obj3 == NULL) {
+        Py_DECREF(arr1);
         Py_DECREF(arrnew);
         return NULL;
     }
@@ -416,6 +417,7 @@ __New_PyArray_Std(PyArrayObject *self, int axis, int rtype, PyArrayObject *out,
         Py_INCREF(arr2);
     }
     if (obj3 == NULL) {
+        Py_DECREF(arr2);
         Py_DECREF(arrnew);
         return NULL;
     }

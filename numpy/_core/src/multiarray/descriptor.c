@@ -556,10 +556,16 @@ _convert_from_array_descr(PyObject *obj, int align)
         }
         PyObject *tup = PyTuple_New((title == NULL ? 2 : 3));
         if (tup == NULL) {
+            Py_DECREF(conv);
             goto fail;
         }
         PyTuple_SET_ITEM(tup, 0, (PyObject *)conv);
-        PyTuple_SET_ITEM(tup, 1, PyLong_FromSsize_t(totalsize));
+        PyObject *offset_obj = PyLong_FromSsize_t(totalsize);
+        if (offset_obj == NULL) {
+            Py_DECREF(tup);
+            goto fail;
+        }
+        PyTuple_SET_ITEM(tup, 1, offset_obj);
 
         /*
          * Title can be "meta-data".  Only insert it
@@ -570,11 +576,13 @@ _convert_from_array_descr(PyObject *obj, int align)
             Py_INCREF(title);
             PyTuple_SET_ITEM(tup, 2, title);
             if (PyDict_SetItem(fields, name, tup) < 0) {
+                Py_DECREF(tup);
                 goto fail;
             }
             if (PyUnicode_Check(title)) {
                 PyObject *existing = PyDict_GetItemWithError(fields, title); // noqa: borrowed-ref OK
                 if (existing == NULL && PyErr_Occurred()) {
+                    Py_DECREF(tup);
                     goto fail;
                 }
                 if (existing != NULL) {
@@ -584,12 +592,14 @@ _convert_from_array_descr(PyObject *obj, int align)
                     goto fail;
                 }
                 if (PyDict_SetItem(fields, title, tup) < 0) {
+                    Py_DECREF(tup);
                     goto fail;
                 }
             }
         }
         else {
             if (PyDict_SetItem(fields, name, tup) < 0) {
+                Py_DECREF(tup);
                 goto fail;
             }
         }
@@ -3006,7 +3016,7 @@ arraydescr_setstate(_PyArray_LegacyDescr *self, PyObject *args)
     char endian;
     PyObject *endian_obj;
     PyObject *subarray, *fields, *names = NULL, *metadata=NULL;
-    int incref_names = 1;
+    int legacy_names = 0;
     npy_int64 signed_dtypeflags = 0;
     npy_uint64 dtypeflags;
 
@@ -3088,20 +3098,26 @@ arraydescr_setstate(_PyArray_LegacyDescr *self, PyObject *args)
 
     if (version == 1 || version == 0) {
         if (fields != Py_None) {
-            PyObject *key, *list;
-            key = PyLong_FromLong(-1);
-            list = PyDict_GetItemWithError(fields, key); // noqa: borrowed-ref OK
-            if (!list) {
+            /*
+             * Old pickles store the field names in `fields` under the key -1.
+             * `names` stays a reference borrowed from `fields` until it has
+             * been stored on `self`; only then is the key removed (see below),
+             * so that none of the error returns in between can leak it.
+             */
+            PyObject *key = PyLong_FromLong(-1);
+            if (key == NULL) {
+                return NULL;
+            }
+            names = PyDict_GetItemWithError(fields, key); // noqa: borrowed-ref OK
+            Py_DECREF(key);
+            if (names == NULL) {
                 if (!PyErr_Occurred()) {
                     /* fields was missing the name it claimed to contain */
                     PyErr_BadInternalCall();
                 }
                 return NULL;
             }
-            Py_INCREF(list);
-            names = list;
-            PyDict_DelItem(fields, key);
-            incref_names = 0;
+            legacy_names = 1;
         }
         else {
             names = Py_None;
@@ -3210,6 +3226,7 @@ arraydescr_setstate(_PyArray_LegacyDescr *self, PyObject *args)
 
         self->subarray = PyMem_RawMalloc(sizeof(PyArray_ArrayDescr));
         if (self->subarray == NULL) {
+            Py_DECREF(subarray_shape);
             return PyErr_NoMemory();
         }
         self->subarray->base = (PyArray_Descr *)PyTuple_GET_ITEM(subarray, 0);
@@ -3239,8 +3256,15 @@ arraydescr_setstate(_PyArray_LegacyDescr *self, PyObject *args)
             Py_INCREF(fields);
             Py_XDECREF(self->names);
             self->names = names;
-            if (incref_names) {
-                Py_INCREF(names);
+            Py_INCREF(names);
+            if (legacy_names) {
+                /* `self` holds its own reference now, drop the pickle's. */
+                PyObject *key = PyLong_FromLong(-1);
+                if (key == NULL || PyDict_DelItem(fields, key) < 0) {
+                    Py_XDECREF(key);
+                    return NULL;
+                }
+                Py_DECREF(key);
             }
         }
         else {

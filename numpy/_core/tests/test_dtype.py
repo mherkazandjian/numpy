@@ -1484,6 +1484,32 @@ class TestPickling:
         with pytest.raises(ValueError, match="endian is not a string"):
             dt.__setstate__(state_with_endian(42))
 
+    @pytest.mark.skipif(not HAS_REFCOUNT, reason="Python lacks refcounts")
+    @pytest.mark.parametrize("names", [
+        ("a",),    # str names are stored on the dtype as they are
+        (b"a",),   # bytes names (Python 2 pickles) are converted to str
+        [b"a"],    # not a tuple: rejected
+    ])
+    def test_setstate_legacy_names_refcount(self, names):
+        # gh-21532: version 0 and 1 pickles keep the field names in `fields`
+        # under the key -1.  That reference must not leak, neither when the
+        # state is accepted nor when it is rejected.
+        dt = np.dtype([("b", "i4")])
+        fields = {-1: names, names[0]: (np.dtype("i4"), 0)}
+        state = (1, "|", None, None, fields, 4, 1, 0)
+        count = sys.getrefcount(names)
+        if isinstance(names, tuple):
+            dt.__setstate__(state)
+            assert dt.names == ("a",)
+            assert dt.fields["a"] == (np.dtype("i4"), 0)
+        else:
+            with pytest.raises(ValueError, match="non-tuple names"):
+                dt.__setstate__(state)
+        # The only references left must be ours: this one, the one still in
+        # `fields` (if any) and the one of the dtype (if it kept `names`).
+        expected = count - int(-1 not in fields) + int(dt.names is names)
+        assert sys.getrefcount(names) == expected
+
 
 class TestPromotion:
     """Test cases related to more complex DType promotions.  Further promotion

@@ -465,6 +465,8 @@ array_struct_get(PyArrayObject *self, void *NPY_UNUSED(ignored))
     }
     Py_INCREF(self);
     if (PyCapsule_SetContext(ret, self) < 0) {
+        Py_DECREF(self);
+        Py_DECREF(ret);
         return NULL;
     }
     return ret;
