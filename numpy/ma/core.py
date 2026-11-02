@@ -1314,9 +1314,99 @@ less.reduce = None
 greater = _MaskedBinaryOperation(umath.greater)
 greater.reduce = None
 logical_and = _MaskedBinaryOperation(umath.logical_and)
-alltrue = _MaskedBinaryOperation(umath.logical_and, 1, 1).reduce
+_logical_and_reduce = _MaskedBinaryOperation(umath.logical_and, 1, 1).reduce
 logical_or = _MaskedBinaryOperation(umath.logical_or)
-sometrue = logical_or.reduce
+_logical_or_reduce = logical_or.reduce
+
+
+def alltrue(target, axis=0, dtype=None):
+    """
+    Test whether all elements along a given axis evaluate to True.
+
+    Equivalent to ``np.ma.logical_and.reduce(target, axis)``. Masked
+    values are ignored (treated as True).
+
+    Parameters
+    ----------
+    target : array_like
+        Input array.
+    axis : int or None, optional
+        Axis along which the reduction is performed. Default is 0.
+        If None, the array is flattened first.
+    dtype : data-type, optional
+        Data type used for the reduction when `target` has a mask.
+
+    Returns
+    -------
+    result : MaskedArray or bool
+        The reduced result. If all values along the axis are masked,
+        the result is masked.
+
+    See Also
+    --------
+    numpy.ma.all : Equivalent method on masked arrays.
+    numpy.ma.logical_and : The underlying masked ufunc.
+    sometrue : Test whether any element evaluates to True.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> a = np.ma.array([[1, 0], [1, 1]], mask=[[0, 0], [0, 1]])
+    >>> np.ma.alltrue(a, axis=0)
+    masked_array(data=[True, False],
+                 mask=[False, False],
+           fill_value=True)
+    >>> np.ma.alltrue(np.ma.array([1, 0, 1], mask=[0, 1, 0]))
+    np.True_
+
+    """
+    return _logical_and_reduce(target, axis=axis, dtype=dtype)
+
+
+def sometrue(target, axis=0, dtype=None):
+    """
+    Test whether any element along a given axis evaluates to True.
+
+    Equivalent to ``np.ma.logical_or.reduce(target, axis)``. Masked
+    values are ignored (treated as False).
+
+    Parameters
+    ----------
+    target : array_like
+        Input array.
+    axis : int or None, optional
+        Axis along which the reduction is performed. Default is 0.
+        If None, the array is flattened first.
+    dtype : data-type, optional
+        Data type used for the reduction when `target` has a mask.
+
+    Returns
+    -------
+    result : MaskedArray or bool
+        The reduced result. If all values along the axis are masked,
+        the result is masked.
+
+    See Also
+    --------
+    numpy.ma.any : Equivalent method on masked arrays.
+    numpy.ma.logical_or : The underlying masked ufunc.
+    alltrue : Test whether all elements evaluate to True.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> a = np.ma.array([[1, 0], [0, 1]], mask=[[0, 0], [0, 1]])
+    >>> np.ma.sometrue(a, axis=0)
+    masked_array(data=[True, False],
+                 mask=[False, False],
+           fill_value=True)
+    >>> np.ma.sometrue(np.ma.array([0, 1, 0], mask=[0, 1, 0]))
+    np.False_
+
+    """
+    return _logical_or_reduce(target, axis=axis, dtype=dtype)
+
+
 logical_xor = _MaskedBinaryOperation(umath.logical_xor)
 bitwise_and = _MaskedBinaryOperation(umath.bitwise_and)
 bitwise_or = _MaskedBinaryOperation(umath.bitwise_or)

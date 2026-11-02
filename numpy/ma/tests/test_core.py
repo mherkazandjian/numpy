@@ -2828,6 +2828,30 @@ class TestUfuncs:
         assert_equal(product(a, axis=0), 0)
         assert_equal(add.reduce(a), pi)
 
+    @pytest.mark.parametrize("func, ufunc_name",
+                             [(alltrue, "logical_and"), (sometrue, "logical_or")])
+    def test_alltrue_sometrue_name_and_doc(self, func, ufunc_name):
+        # gh-26577: these used to be bound ``reduce`` methods, so their
+        # name and docstring were those of ``_MaskedBinaryOperation.reduce``.
+        assert func.__name__ == func.__qualname__
+        assert func.__name__ in ("alltrue", "sometrue")
+        assert func.__doc__ is not None
+        assert "Reduce `target` along the given `axis`" not in func.__doc__
+        assert ufunc_name in func.__doc__
+
+    def test_alltrue_sometrue_match_reduce(self):
+        # gh-26577: the wrappers must behave exactly like the reductions
+        # they replace.
+        a = array([[1, 0], [1, 1], [0, 1]], mask=[[0, 0], [0, 1], [1, 0]])
+        for axis in (0, 1, None):
+            assert_equal(alltrue(a, axis=axis),
+                         numpy.ma.core._logical_and_reduce(a, axis))
+            assert_equal(sometrue(a, axis=axis),
+                         numpy.ma.core._logical_or_reduce(a, axis))
+        assert alltrue(array([1, 0, 1], mask=[0, 1, 0]))
+        assert not sometrue(array([0, 1, 0], mask=[0, 1, 0]))
+        assert alltrue(array([1, 0], mask=[1, 1])) is masked
+
     def test_minmax(self):
         # Tests extrema on MaskedArrays.
         a = arange(1, 13).reshape(3, 4)
